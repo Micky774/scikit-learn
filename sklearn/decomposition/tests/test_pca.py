@@ -19,24 +19,31 @@ PCA_SOLVERS = ["full", "arpack", "randomized", "auto"]
 
 @pytest.mark.parametrize("svd_solver", PCA_SOLVERS)
 @pytest.mark.parametrize("n_components", range(1, iris.data.shape[1]))
-def test_pca(svd_solver, n_components):
+def test_pca(svd_solver, n_components, global_dtype):
+    atol = 1e-5 if global_dtype == np.float32 else 1e-12
     X = iris.data
+    X = X.astype(global_dtype)
     pca = PCA(n_components=n_components, svd_solver=svd_solver)
 
     # check the shape of fit.transform
     X_r = pca.fit(X).transform(X)
     assert X_r.shape[1] == n_components
+    assert X_r.dtype == global_dtype
 
     # check the equivalence of fit.transform and fit_transform
     X_r2 = pca.fit_transform(X)
-    assert_allclose(X_r, X_r2)
+    assert X_r2.dtype == global_dtype
+    assert_allclose(X_r, X_r2, atol=atol)
     X_r = pca.transform(X)
-    assert_allclose(X_r, X_r2)
+    assert X_r.dtype == global_dtype
+    assert_allclose(X_r, X_r2, atol=atol)
 
     # Test get_covariance and get_precision
     cov = pca.get_covariance()
+    assert cov.dtype == global_dtype
     precision = pca.get_precision()
-    assert_allclose(np.dot(cov, precision), np.eye(X.shape[1]), atol=1e-12)
+    assert precision.dtype == global_dtype
+    assert_allclose(np.dot(cov, precision), np.eye(X.shape[1]), atol=atol)
 
 
 def test_no_empty_slice_warning():
@@ -52,7 +59,8 @@ def test_no_empty_slice_warning():
 
 @pytest.mark.parametrize("copy", [True, False])
 @pytest.mark.parametrize("solver", PCA_SOLVERS)
-def test_whitening(solver, copy):
+def test_whitening(solver, copy, global_dtype):
+    atol = 1e-5 if global_dtype == np.float32 else 1e-12
     # Check that PCA output has unit-variance
     rng = np.random.RandomState(0)
     n_samples = 100
@@ -64,7 +72,7 @@ def test_whitening(solver, copy):
     X = np.dot(
         rng.randn(n_samples, rank),
         np.dot(np.diag(np.linspace(10.0, 1.0, rank)), rng.randn(rank, n_features)),
-    )
+    ).astype(global_dtype, copy=False)
     # the component-wise variance of the first 50 features is 3 times the
     # mean component-wise variance of the remaining 30 features
     X[:, :50] *= 3
@@ -88,10 +96,10 @@ def test_whitening(solver, copy):
     X_whitened = pca.fit_transform(X_.copy())
     assert X_whitened.shape == (n_samples, n_components)
     X_whitened2 = pca.transform(X_)
-    assert_allclose(X_whitened, X_whitened2, rtol=5e-4)
+    assert_allclose(X_whitened, X_whitened2, rtol=5e-4, atol=atol)
 
-    assert_allclose(X_whitened.std(ddof=1, axis=0), np.ones(n_components))
-    assert_allclose(X_whitened.mean(axis=0), np.zeros(n_components), atol=1e-12)
+    assert_allclose(X_whitened.std(ddof=1, axis=0), np.ones(n_components), atol=atol)
+    assert_allclose(X_whitened.mean(axis=0), np.zeros(n_components), atol=atol)
 
     X_ = X.copy()
     pca = PCA(
