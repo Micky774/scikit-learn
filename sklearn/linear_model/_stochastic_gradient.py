@@ -78,25 +78,12 @@ class BaseSGD(SparseCoefMixin, BaseEstimator, metaclass=ABCMeta):
     """Base class for SGD classification and regression."""
 
     _parameter_constraints = {
-        "penalty": [StrOptions({"l2", "l1", "elasticnet"}), None],
-        "alpha": [Interval(Real, 0, None, closed="left")],
-        # "C": [Interval(Real , 1, None, closed="left")],
-        "l1_ratio": [Interval(Real, 0, 1, closed="both")],
         "fit_intercept": [bool],
         "max_iter": [Interval(Integral, 1, None, closed="left")],
         "tol": [Interval(Real, None, None, closed="both"), None],
         "shuffle": [bool],
         "verbose": [Interval(Integral, 0, None, closed="left")],
-        "epsilon": [Interval(Real, 0, None, closed="left")],
         "random_state": ["random_state"],
-        "learning_rate": [
-            StrOptions({"constant", "optimal", "invscaling", "adaptive", "pa1", "pa2"})
-        ],
-        "eta0": [Interval(Real, 0, None, closed="left")],
-        "power_t": [Interval(Real, None, None, closed="neither")],
-        "early_stopping": [bool],
-        "validation_fraction": [Interval(Real, 0, 1, closed="neither")],
-        "n_iter_no_change": [Interval(Integral, 1, None, closed="left")],
         "warm_start": [bool],
         "average": [Interval(Integral, 0, None, closed="left"), bool],
     }
@@ -535,6 +522,9 @@ class BaseSGDClassifier(LinearClassifierMixin, BaseSGD, metaclass=ABCMeta):
         ],
         "n_jobs": [None, Integral],
         "class_weight": [StrOptions({"balanced"}), dict, None],  # a bit tricky?
+        "early_stopping": [bool],
+        "validation_fraction": [Interval(Real, 0, 1, closed="neither")],
+        "n_iter_no_change": [Interval(Integral, 1, None, closed="left")],
     }
 
     @abstractmethod
@@ -1192,7 +1182,18 @@ class SGDClassifier(BaseSGDClassifier):
     [1]
     """
 
-    _parameter_constraints = BaseSGDClassifier._parameter_constraints
+    _parameter_constraints = {
+        **BaseSGDClassifier._parameter_constraints,
+        "epsilon": [Interval(Real, 0, None, closed="left")],
+        "penalty": [StrOptions({"l2", "l1", "elasticnet"}), None],
+        "learning_rate": [
+            StrOptions({"constant", "optimal", "invscaling", "adaptive", "pa1", "pa2"})
+        ],
+        "l1_ratio": [Interval(Real, 0, 1, closed="both")],
+        "alpha": [Interval(Real, 0, None, closed="left")],
+        "eta0": [Interval(Real, 0, None, closed="left")],
+        "power_t": [Interval(Real, None, None, closed="neither")],
+    }
 
     def __init__(
         self,
@@ -1393,6 +1394,9 @@ class BaseSGDRegressor(RegressorMixin, BaseSGD):
                 deprecated={"squared_loss"},
             )
         ],
+        "early_stopping": [bool],
+        "validation_fraction": [Interval(Real, 0, 1, closed="neither")],
+        "n_iter_no_change": [Interval(Integral, 1, None, closed="left")],
     }
 
     @abstractmethod
@@ -1955,6 +1959,19 @@ class SGDRegressor(BaseSGDRegressor):
                     ('sgdregressor', SGDRegressor())])
     """
 
+    _parameter_constraints = {
+        **BaseSGDRegressor._parameter_constraints,
+        "epsilon": [Interval(Real, 0, None, closed="left")],
+        "penalty": [StrOptions({"l2", "l1", "elasticnet"}), None],
+        "learning_rate": [
+            StrOptions({"constant", "optimal", "invscaling", "adaptive", "pa1", "pa2"})
+        ],
+        "l1_ratio": [Interval(Real, 0, 1, closed="both")],
+        "alpha": [Interval(Real, 0, None, closed="left")],
+        "eta0": [Interval(Real, 0, None, closed="left")],
+        "power_t": [Interval(Real, None, None, closed="neither")],
+    }
+
     def __init__(
         self,
         loss="squared_error",
@@ -2153,21 +2170,13 @@ class SGDOneClassSVM(BaseSGD, OutlierMixin):
     loss_functions = {"hinge": (Hinge, 1.0)}
 
     _parameter_constraints = {
-        # **BaseSGD._parameter_constraints,
+        **BaseSGD._parameter_constraints,
         "nu": [Interval(Real, 0.0, 1.0, closed="right")],
-        "fit_intercept": [bool],
-        "max_iter": [Interval(Integral, 1, None, closed="left")],
-        "tol": [Interval(Real, None, None, closed="left"), None],
-        "shuffle": [bool],
-        "verbose": [Interval(Integral, 0, None, closed="left")],
-        "random_state": ["random_state"],
         "learning_rate": [
             StrOptions({"constant", "optimal", "invscaling", "adaptive", "pa1", "pa2"})
         ],
         "eta0": [Interval(Real, 0, None, closed="left")],
         "power_t": [Interval(Real, None, None, closed="neither")],
-        "warm_start": [bool],
-        "average": [Interval(Integral, 0, None, closed="left"), bool],
     }
 
     def __init__(

@@ -1,6 +1,6 @@
 # Authors: Rob Zinkov, Mathieu Blondel
 # License: BSD 3 clause
-from numbers import Integral, Real
+from numbers import Real
 
 from ._stochastic_gradient import BaseSGDClassifier
 from ._stochastic_gradient import BaseSGDRegressor
@@ -175,21 +175,9 @@ class PassiveAggressiveClassifier(BaseSGDClassifier):
     """
 
     _parameter_constraints = {
+        **BaseSGDClassifier._parameter_constraints,
+        "C": [Interval(Real, 0, None, closed="neither")],
         "loss": [StrOptions({"hinge", "squared_hinge"})],
-        "C": [Interval(Real, None, None, closed="neither")],
-        "fit_intercept": [bool],
-        "max_iter": [Interval(Integral, 1, None, closed="left")],
-        "tol": [Interval(Real, None, None, closed="neither"), None],
-        "shuffle": [bool],
-        "verbose": [Interval(Integral, 0, None, closed="left")],
-        "random_state": ["random_state"],
-        "early_stopping": [bool],
-        "validation_fraction": [Interval(Real, 0, 1, closed="neither")],
-        "n_iter_no_change": [Interval(Integral, 1, None, closed="left")],
-        "warm_start": [bool],
-        "average": [Interval(Integral, 0, None, closed="left"), bool],
-        "n_jobs": [None, Integral],
-        "class_weight": [StrOptions({"balanced"}), dict, None],
     }
 
     def __init__(
@@ -466,19 +454,9 @@ class PassiveAggressiveRegressor(BaseSGDRegressor):
     """
 
     _parameter_constraints = {
+        **BaseSGDRegressor._parameter_constraints,
         "loss": [StrOptions({"epsilon_insensitive", "squared_epsilon_insensitive"})],
-        "C": [Interval(Real, None, None, closed="neither")],
-        "fit_intercept": [bool],
-        "max_iter": [Interval(Integral, 1, None, closed="left")],
-        "tol": [Interval(Real, None, None, closed="neither"), None],
-        "shuffle": [bool],
-        "verbose": [Interval(Integral, 0, None, closed="left")],
-        "random_state": ["random_state"],
-        "early_stopping": [bool],
-        "validation_fraction": [Interval(Real, 0, 1, closed="neither")],
-        "n_iter_no_change": [Interval(Integral, 1, None, closed="left")],
-        "warm_start": [bool],
-        "average": [Interval(Integral, 0, None, closed="left"), bool],
+        "C": [Interval(Real, 0, None, closed="neither")],
         "epsilon": [Interval(Real, 0, None, closed="left")],
     }
 

@@ -38,8 +38,12 @@ def validate_parameter_constraints(parameter_constraints, params, caller_name):
     """
     if params.keys() != parameter_constraints.keys():
         raise ValueError(
-            f"The parameter constraints {list(parameter_constraints.keys())} do not "
-            f"match the parameters to validate {list(params.keys())}."
+            f"The parameter constraints {list(parameter_constraints.keys())} do not"
+            f" match the parameters to validate {list(params.keys())}.\n\nConsider the"
+            " extra constraints"
+            f" {set(parameter_constraints.keys())-set(params.keys())} and potential"
+            " missing constraints"
+            f" {set(params.keys())-set(parameter_constraints.keys())}"
         )
 
     for param_name, param_val in params.items():
