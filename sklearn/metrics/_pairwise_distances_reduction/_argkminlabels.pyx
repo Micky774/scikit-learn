@@ -1,7 +1,9 @@
+
 from cython cimport floating, integral
 from cython.parallel cimport parallel, prange
 from libcpp.map cimport map as cmap
-from libc.stdlib cimport free
+from libcpp.vector cimport vector
+from libc.stdlib cimport free, malloc
 
 cimport numpy as cnp
 
@@ -22,15 +24,19 @@ cpdef enum WeightingStrategy:
     distance = 1
     other = 2
 
+def _normalize(arr):
+    arr = np.asarray(arr)
+    arr /= arr.sum(axis=2, keepdims=True)
 
 cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
     """
     64bit implementation of PairwiseDistancesArgKminLabel.
     """
     cdef:
-        const ITYPE_t[:] labels,
-        DTYPE_t[:, :] label_weights
-        cmap[ITYPE_t, ITYPE_t] labels_to_index
+        ITYPE_t n_outputs
+        const ITYPE_t[:, :] labels,
+        vector[DTYPE_t[:, :]] label_weights
+        vector[cmap[ITYPE_t, ITYPE_t]] labels_to_index
         WeightingStrategy weight_type
 
     @classmethod
@@ -80,7 +86,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
     def __init__(
         self,
         DatasetsPair datasets_pair,
-        const ITYPE_t[:] labels,
+        const ITYPE_t[:, :] labels,
         chunk_size=None,
         strategy=None,
         ITYPE_t k=1,
@@ -92,7 +98,6 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
             strategy=strategy,
             k=k,
         )
-
         if weights == "uniform":
             self.weight_type = WeightingStrategy.uniform
         elif weights == "distance":
@@ -100,17 +105,26 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         else:
             self.weight_type = WeightingStrategy.other
         self.labels = labels
+        self.n_outputs = labels.shape[1]
 
-        unique_labels = np.unique(labels)
+        # self.label_weights = <DTYPE_t[:, :]*> malloc(self.n_outputs * sizeof(DTYPE_t[:, :]))
+        cdef Py_ssize_t idx, jdx
+        for idx in range(self.n_outputs):
+            unique_labels = np.unique(self.labels[:, idx])
 
-        # Map from set of unique labels to their indices in `label_weights`
-        self.labels_to_index = {label:idx for idx, label in enumerate(self.unique_labels)}
-        # Buffer used in building a histogram for one-pass weighted mode
-        self.label_weights = np.zeros((self.n_samples_X,  len(self.unique_labels)), dtype=DTYPE)
+            # Map from set of unique labels to their indices in `label_weights`
+            self.labels_to_index.push_back({label:jdx for jdx, label in enumerate(unique_labels)})
+
+            # Buffer used in building a histogram for one-pass weighted mode
+            self.label_weights.push_back(np.zeros((self.n_samples_X,  len(unique_labels)), dtype=DTYPE))
+
+    # def __dealloc__(self):
+    #     if self.label_weights is not NULL:
+    #         free(self.label_weights)
 
     def _finalize_results(self):
-        probabilities = np.asarray(self.label_weights)
-        probabilities /= probabilities.sum(axis=1, keepdims=True)
+        cdef Py_ssize_t idx
+        probabilities = [_normalize(self.label_weight[idx]) for idx in range(self.n_outputs)]
         return probabilities
 
     cdef inline ITYPE_t weighted_histogram_mode(
@@ -119,7 +133,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
             ITYPE_t* indices,
             DTYPE_t* distances,) nogil:
         cdef:
-            ITYPE_t y_idx, label, label_index, multi_output_index
+            ITYPE_t y_idx, jdx, kdx, label, label_index
             DTYPE_t label_weight = 1
 
         # Iterate through the sample k-nearest neighbours
@@ -129,10 +143,10 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
             if self.weight_type == WeightingStrategy.distance:
                 label_weight = 1 / distances[jdx]
             y_idx = indices[jdx]
-            label = self.labels[y_idx]
-            label_index = self.labels_to_index[label]
-            self.label_weights[sample_index][label_index] += label_weight
-        return
+            for kdx in range(self.n_outputs):
+                label = self.labels[y_idx, kdx]
+                label_index = self.labels_to_index[kdx][label]
+                self.label_weights[kdx][sample_index, label_index] += label_weight
 
     cdef void _parallel_on_X_prange_iter_finalize(
         self,
