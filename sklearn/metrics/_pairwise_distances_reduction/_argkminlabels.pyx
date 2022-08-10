@@ -1,8 +1,12 @@
 
 from cython cimport floating, integral
 from cython.parallel cimport parallel, prange
+<<<<<<< HEAD
 from libcpp.map cimport map as cmap
 from libcpp.vector cimport vector
+=======
+from libcpp.map cimport map as cmap, pair
+>>>>>>> pwd_kncp
 from libc.stdlib cimport free
 
 cimport numpy as cnp
@@ -26,12 +30,6 @@ cpdef enum WeightingStrategy:
 cdef struct FakeMemView:
     DTYPE_t * data
     ITYPE_t ncols
-
-cdef extern from *:
-    cdef cppclass pair "std::pair" [T, U]:
-        pair(T&, U&) except +
-    cdef cppclass map "std::map" [T, U]:
-        void insert(pair[T, U]&) except +
 
 def _normalize(arr):
     arr /= arr.sum(axis=1, keepdims=True)
