@@ -1,12 +1,8 @@
 
 from cython cimport floating, integral
 from cython.parallel cimport parallel, prange
-<<<<<<< HEAD
-from libcpp.map cimport map as cmap
-from libcpp.vector cimport vector
-=======
 from libcpp.map cimport map as cmap, pair
->>>>>>> pwd_kncp
+from libcpp.vector cimport vector
 from libc.stdlib cimport free
 
 cimport numpy as cnp
@@ -116,14 +112,15 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         self.n_outputs = labels.shape[1]
 
         cdef:
-            ITYPE_t idx, jdx
+            ITYPE_t idx, jdx, label
             FakeMemView mview
             ITYPE_t[:] unique_labels
             cmap[ITYPE_t, ITYPE_t] label_map
         self.label_weights_ndarrays = []
+
         for idx in range(self.n_outputs):
             unique_labels = np.unique(self.labels[:, idx])
-            label_map = cmap()
+            label_map = cmap[ITYPE_t, ITYPE_t]()
 
             # Map from set of unique labels to their indices in `label_weights`
             for jdx, label in enumerate(unique_labels):
