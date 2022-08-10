@@ -10,7 +10,7 @@ cimport numpy as cnp
 cnp.import_array()
 
 from ._argkmin cimport PairwiseDistancesArgKmin64
-from ._datasets_pair cimport DatasetsPair, DenseDenseDatasetsPair
+from ._datasets_pair cimport DatasetsPair64
 from ...utils._typedefs cimport ITYPE_t, DTYPE_t
 from ...utils._typedefs import ITYPE, DTYPE
 from ...utils._sorting cimport simultaneous_sort
@@ -27,6 +27,12 @@ cpdef enum WeightingStrategy:
 cdef struct FakeMemView:
     DTYPE_t * data
     ITYPE_t ncols
+
+cdef extern from *:
+    cdef cppclass pair "std::pair" [T, U]:
+        pair(T&, U&) except +
+    cdef cppclass map "std::map" [T, U]:
+        void insert(pair[T, U]&) except +
 
 def _normalize(arr):
     arr /= arr.sum(axis=1, keepdims=True)
@@ -71,7 +77,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         No instance should directly be created outside of this class method.
         """
         pda = PairwiseDistancesArgKminLabels64(
-            datasets_pair=DatasetsPair.get_for(X, Y, metric, metric_kwargs),
+            datasets_pair=DatasetsPair64.get_for(X, Y, metric, metric_kwargs),
             k=k,
             chunk_size=chunk_size,
             strategy=strategy,
@@ -90,7 +96,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
 
     def __init__(
         self,
-        DatasetsPair datasets_pair,
+        DatasetsPair64 datasets_pair,
         const ITYPE_t[:, :] labels,
         chunk_size=None,
         strategy=None,
@@ -115,12 +121,14 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         cdef:
             Py_ssize_t idx, jdx
             FakeMemView mview
+            ITYPE_t[:] unique_labels
         self.label_weights_ndarrays = []
         for idx in range(self.n_outputs):
             unique_labels = np.unique(self.labels[:, idx])
 
             # Map from set of unique labels to their indices in `label_weights`
-            self.labels_to_index.push_back({label:jdx for jdx, label in enumerate(unique_labels)})
+            for jdx, label in enumerate(unique_labels):
+                self.labels_to_index.insert(pair[ITYPE_t, ITYPE_t](label, jdx))
 
             # Buffer used in building a histogram for one-pass weighted mode
             self.label_weights_ndarrays.append(np.zeros((self.n_samples_X,  len(unique_labels)), dtype=DTYPE))
@@ -133,11 +141,12 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         probabilities = [_normalize(self.label_weights_ndarrays[idx]) for idx in range(self.n_outputs)]
         return probabilities
 
-    cdef inline ITYPE_t weighted_histogram_mode(
-            self,
-            ITYPE_t sample_index,
-            ITYPE_t* indices,
-            DTYPE_t* distances,) nogil:
+    cdef inline void weighted_histogram_mode(
+        self,
+        ITYPE_t sample_index,
+        ITYPE_t* indices,
+        DTYPE_t* distances,
+   ) nogil:
         cdef:
             ITYPE_t y_idx, jdx, kdx, label, label_index
             DTYPE_t label_weight = 1
