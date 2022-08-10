@@ -1,4 +1,3 @@
-
 from cython cimport floating, integral
 from cython.parallel cimport parallel, prange
 from libcpp.map cimport map as cmap, pair
@@ -17,6 +16,7 @@ from ...utils._sorting cimport simultaneous_sort
 import numpy as np
 
 from sklearn.utils.fixes import threadpool_limits
+
 
 cpdef enum WeightingStrategy:
     uniform = 0
