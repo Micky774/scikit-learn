@@ -24,9 +24,13 @@ cpdef enum WeightingStrategy:
     distance = 1
     other = 2
 
+cdef struct FakeMemView:
+    DTYPE_t * data
+    ITYPE_t ncols
+
 def _normalize(arr):
-    arr = np.asarray(arr)
-    arr /= arr.sum(axis=2, keepdims=True)
+    arr /= arr.sum(axis=1, keepdims=True)
+    return arr
 
 cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
     """
@@ -35,9 +39,10 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
     cdef:
         ITYPE_t n_outputs
         const ITYPE_t[:, :] labels,
-        vector[DTYPE_t[:, :]] label_weights
+        vector[FakeMemView] label_weights
         vector[cmap[ITYPE_t, ITYPE_t]] labels_to_index
         WeightingStrategy weight_type
+        list label_weights_ndarrays
 
     @classmethod
     def compute(
@@ -107,8 +112,10 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         self.labels = labels
         self.n_outputs = labels.shape[1]
 
-        # self.label_weights = <DTYPE_t[:, :]*> malloc(self.n_outputs * sizeof(DTYPE_t[:, :]))
-        cdef Py_ssize_t idx, jdx
+        cdef:
+            Py_ssize_t idx, jdx
+            FakeMemView mview
+        self.label_weights_ndarrays = []
         for idx in range(self.n_outputs):
             unique_labels = np.unique(self.labels[:, idx])
 
@@ -116,15 +123,14 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
             self.labels_to_index.push_back({label:jdx for jdx, label in enumerate(unique_labels)})
 
             # Buffer used in building a histogram for one-pass weighted mode
-            self.label_weights.push_back(np.zeros((self.n_samples_X,  len(unique_labels)), dtype=DTYPE))
-
-    # def __dealloc__(self):
-    #     if self.label_weights is not NULL:
-    #         free(self.label_weights)
+            self.label_weights_ndarrays.append(np.zeros((self.n_samples_X,  len(unique_labels)), dtype=DTYPE))
+            mview.data = <DTYPE_t*>&(<cnp.ndarray>self.label_weights_ndarrays[idx]).data[0]
+            mview.ncols = len(unique_labels)
+            self.label_weights.push_back(mview)
 
     def _finalize_results(self):
         cdef Py_ssize_t idx
-        probabilities = [_normalize(self.label_weight[idx]) for idx in range(self.n_outputs)]
+        probabilities = [_normalize(self.label_weights_ndarrays[idx]) for idx in range(self.n_outputs)]
         return probabilities
 
     cdef inline ITYPE_t weighted_histogram_mode(
@@ -135,6 +141,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
         cdef:
             ITYPE_t y_idx, jdx, kdx, label, label_index
             DTYPE_t label_weight = 1
+            FakeMemView mview
 
         # Iterate through the sample k-nearest neighbours
         for jdx in range(self.k):
@@ -146,7 +153,8 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
             for kdx in range(self.n_outputs):
                 label = self.labels[y_idx, kdx]
                 label_index = self.labels_to_index[kdx][label]
-                self.label_weights[kdx][sample_index, label_index] += label_weight
+                mview = self.label_weights[kdx]
+                mview.data[mview.ncols * sample_index + label_index] += label_weight
 
     cdef void _parallel_on_X_prange_iter_finalize(
         self,

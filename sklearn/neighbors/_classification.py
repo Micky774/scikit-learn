@@ -314,7 +314,7 @@ class KNeighborsClassifier(KNeighborsMixin, ClassifierMixin, NeighborsBase):
                     metric_kwargs=self.metric_params,
                 )
                 if not self.outputs_2d_:
-                    probabilities = probabilities[:, 0]
+                    probabilities = probabilities[0]
                 return probabilities
 
             # In that case, we do not need the distances to perform
