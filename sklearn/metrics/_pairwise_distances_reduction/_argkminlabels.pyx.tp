@@ -1,3 +1,19 @@
+{{py:
+
+implementation_specific_values = [
+    # Values are the following ones:
+    #
+    #       name_suffix, INPUT_DTYPE_t, INPUT_DTYPE
+    #
+    # We also use the float64 dtype and C-type names as defined in
+    # `sklearn.utils._typedefs` to maintain consistency.
+    #
+    ('64', 'DTYPE_t', 'DTYPE'),
+    ('32', 'cnp.float32_t', 'np.float32')
+]
+
+}}
+
 from cython cimport floating, integral
 from cython.parallel cimport parallel, prange
 from libcpp.map cimport map as cmap, pair
@@ -8,15 +24,12 @@ cimport numpy as cnp
 
 cnp.import_array()
 
-from ._argkmin cimport PairwiseDistancesArgKmin64
-from ._datasets_pair cimport DatasetsPair64
 from ...utils._typedefs cimport ITYPE_t, DTYPE_t
 from ...utils._typedefs import ITYPE, DTYPE
 from ...utils._sorting cimport simultaneous_sort
 import numpy as np
 
 from sklearn.utils.fixes import threadpool_limits
-
 
 cpdef enum WeightingStrategy:
     uniform = 0
@@ -31,9 +44,13 @@ def _normalize(arr):
     arr /= arr.sum(axis=1, keepdims=True)
     return arr
 
-cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
+{{for name_suffix, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}
+from ._argkmin cimport PairwiseDistancesArgKmin{{name_suffix}}
+from ._datasets_pair cimport DatasetsPair{{name_suffix}}
+
+cdef class PairwiseDistancesArgKminLabels{{name_suffix}}(PairwiseDistancesArgKmin{{name_suffix}}):
     """
-    64bit implementation of PairwiseDistancesArgKminLabel.
+    {{name_suffix}}bit implementation of PairwiseDistancesArgKminLabel.
     """
     cdef:
         ITYPE_t n_outputs
@@ -60,7 +77,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
 
         This classmethod is responsible for introspecting the arguments
         values to dispatch to the most appropriate implementation of
-        :class:`PairwiseDistancesArgKmin64`.
+        :class:`PairwiseDistancesArgKmin{{name_suffix}}`.
 
         This allows decoupling the API entirely from the implementation details
         whilst maintaining RAII: all temporarily allocated datastructures necessary
@@ -69,8 +86,8 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
 
         No instance should directly be created outside of this class method.
         """
-        pda = PairwiseDistancesArgKminLabels64(
-            datasets_pair=DatasetsPair64.get_for(X, Y, metric, metric_kwargs),
+        pda = PairwiseDistancesArgKminLabels{{name_suffix}}(
+            datasets_pair=DatasetsPair{{name_suffix}}.get_for(X, Y, metric, metric_kwargs),
             k=k,
             chunk_size=chunk_size,
             strategy=strategy,
@@ -89,7 +106,7 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
 
     def __init__(
         self,
-        DatasetsPair64 datasets_pair,
+        DatasetsPair{{name_suffix}} datasets_pair,
         const ITYPE_t[:, :] labels,
         chunk_size=None,
         strategy=None,
@@ -215,3 +232,4 @@ cdef class PairwiseDistancesArgKminLabels64(PairwiseDistancesArgKmin64):
                     &self.argkmin_distances[sample_index][0],
                 )
         return
+{{endfor}}
