@@ -301,30 +301,20 @@ class KNeighborsClassifier(KNeighborsMixin, ClassifierMixin, NeighborsBase):
                     X, self._fit_X, self.metric
                 )
             ):
-                if self.outputs_2d_:
-                    probabilities = []
-                    for k in range(self._y.shape[1]):
-                        probabilities.append(
-                            PairwiseDistancesArgKminLabels.compute(
-                                X,
-                                self._fit_X,
-                                k=self.n_neighbors,
-                                weights=self.weights,
-                                labels=self._y[:, k],
-                                metric=self.metric,
-                                metric_kwargs=self.metric_params,
-                            )
-                        )
-                else:
-                    probabilities = PairwiseDistancesArgKminLabels.compute(
-                        X,
-                        self._fit_X,
-                        k=self.n_neighbors,
-                        weights=self.weights,
-                        labels=self._y,
-                        metric=self.metric,
-                        metric_kwargs=self.metric_params,
-                    )
+                labels = self._y
+                if not self.outputs_2d_:
+                    labels = labels[:, np.newaxis]
+                probabilities = PairwiseDistancesArgKminLabels.compute(
+                    X,
+                    self._fit_X,
+                    k=self.n_neighbors,
+                    weights=self.weights,
+                    labels=labels,
+                    metric=self.metric,
+                    metric_kwargs=self.metric_params,
+                )
+                if not self.outputs_2d_:
+                    probabilities = probabilities[0]
                 return probabilities
 
             # In that case, we do not need the distances to perform
