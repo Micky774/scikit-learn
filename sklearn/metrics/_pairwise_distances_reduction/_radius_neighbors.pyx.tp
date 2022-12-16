@@ -12,6 +12,8 @@ from ...utils._sorting cimport simultaneous_sort
 from ...utils._typedefs cimport ITYPE_t, DTYPE_t
 from ...utils._vector_sentinel cimport vector_to_nd_array
 
+from ._base cimport ENGINES, EuclideanEngine
+
 from numbers import Real
 from scipy.sparse import issparse
 from ...utils import check_array, check_scalar, _in_unstable_openblas_configuration
@@ -115,13 +117,14 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
                 sort_results=sort_results,
             )
 
+        engine = EuclideanEngine()
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
             if pda.execute_in_parallel_on_Y:
-                pda._parallel_on_Y()
+                pda._parallel_on_Y(engine)
             else:
-                pda._parallel_on_X()
+                pda._parallel_on_X(engine)
 
         return pda._finalize_results(return_distance)
 
@@ -167,6 +170,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
 
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
+        ENGINES engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -198,6 +202,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
 
     cdef void _parallel_on_X_init_chunk(
         self,
+        ENGINES engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -211,6 +216,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
     @final
     cdef void _parallel_on_X_prange_iter_finalize(
         self,
+        ENGINES engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -229,6 +235,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
 
     cdef void _parallel_on_Y_init(
         self,
+        ENGINES engine,
     ) nogil:
         cdef:
             ITYPE_t thread_num
@@ -242,6 +249,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
     @final
     cdef void _merge_vectors(
         self,
+        ENGINES engine,
         ITYPE_t idx,
         ITYPE_t num_threads,
     ) nogil:
@@ -274,6 +282,7 @@ cdef class RadiusNeighbors{{name_suffix}}(BaseDistancesReduction{{name_suffix}})
 
     cdef void _parallel_on_Y_finalize(
         self,
+        ENGINES engine,
     ) nogil:
         cdef:
             ITYPE_t idx
@@ -407,6 +416,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_X_parallel_init(
         self,
+        ENGINES engine,
         ITYPE_t thread_num,
     ) nogil:
         RadiusNeighbors{{name_suffix}}._parallel_on_X_parallel_init(self, thread_num)
@@ -415,6 +425,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_X_init_chunk(
         self,
+        ENGINES engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -425,6 +436,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_X_pre_compute_and_reduce_distances_on_chunks(
         self,
+        ENGINES engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -444,6 +456,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_Y_init(
         self,
+        ENGINES engine,
     ) nogil:
         RadiusNeighbors{{name_suffix}}._parallel_on_Y_init(self)
         self.middle_term_computer._parallel_on_Y_init()
@@ -451,6 +464,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_Y_parallel_init(
         self,
+        ENGINES engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -461,6 +475,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _parallel_on_Y_pre_compute_and_reduce_distances_on_chunks(
         self,
+        ENGINES engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -485,6 +500,7 @@ cdef class EuclideanRadiusNeighbors{{name_suffix}}(RadiusNeighbors{{name_suffix}
     @final
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
+        ENGINES engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
