@@ -3,6 +3,7 @@ cimport numpy as cnp
 from cython cimport final
 
 from ...utils._typedefs cimport ITYPE_t, DTYPE_t, SPARSE_INDEX_TYPE_t
+from ._engines cimport BaseEngine
 
 cnp.import_array()
 
@@ -53,15 +54,16 @@ cdef class BaseDistancesReduction{{name_suffix}}:
         bint execute_in_parallel_on_Y
 
     @final
-    cdef void _parallel_on_X(self) nogil
+    cdef void _parallel_on_X(self, BaseEngine engine) nogil
 
     @final
-    cdef void _parallel_on_Y(self) nogil
+    cdef void _parallel_on_Y(self, BaseEngine engine) nogil
 
     # Placeholder methods which have to be implemented
 
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
+        BaseEngine engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -76,11 +78,13 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_X_parallel_init(
         self,
+        BaseEngine engine,
         ITYPE_t thread_num,
     ) nogil
 
     cdef void _parallel_on_X_init_chunk(
         self,
+        BaseEngine engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -88,6 +92,7 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_X_pre_compute_and_reduce_distances_on_chunks(
         self,
+        BaseEngine engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -97,6 +102,7 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_X_prange_iter_finalize(
         self,
+        BaseEngine engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -104,15 +110,18 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_X_parallel_finalize(
         self,
+        BaseEngine engine,
         ITYPE_t thread_num
     ) nogil
 
     cdef void _parallel_on_Y_init(
         self,
+        BaseEngine engine,
     ) nogil
 
     cdef void _parallel_on_Y_parallel_init(
         self,
+        BaseEngine engine,
         ITYPE_t thread_num,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -120,6 +129,7 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_Y_pre_compute_and_reduce_distances_on_chunks(
         self,
+        BaseEngine engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -129,6 +139,7 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     cdef void _parallel_on_Y_synchronize(
         self,
+        BaseEngine engine,
         ITYPE_t X_start,
         ITYPE_t X_end,
     ) nogil

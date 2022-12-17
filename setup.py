@@ -331,6 +331,12 @@ extension_config = {
             "extra_compile_args": ["-std=c++11"],
         },
         {
+            "sources": ["_engines.pyx.tp", "_engines.pxd.tp"],
+            "language": "c++",
+            "include_np": True,
+            "extra_compile_args": ["-std=c++11"],
+        },
+        {
             "sources": ["_base.pyx.tp", "_base.pxd.tp"],
             "language": "c++",
             "include_np": True,
