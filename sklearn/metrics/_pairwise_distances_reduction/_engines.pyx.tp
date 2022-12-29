@@ -14,7 +14,7 @@ implementation_specific_values = [
 
 }}
 cimport numpy as cnp
-
+from cython cimport final
 from libcpp.vector cimport vector
 
 from ...utils._cython_blas cimport (
@@ -310,7 +310,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
                 self.dist_middle_terms_chunks_size
             )
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -318,15 +318,16 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t Y_end,
         ITYPE_t thread_num,
     ) nogil:
-        return NULL
+        return
 
+    @final
     cdef DTYPE_t _compute_pair_distance(
         self,
         ITYPE_t i, # Index of X sample
         ITYPE_t j, # Index of Y sample
         ITYPE_t X_start, # Index offset
         ITYPE_t Y_start, # Index offset
-        DTYPE_t * dist_middle_terms, # Array of pre-computeted middle terms
+        ITYPE_t thread_num, # Thread number
     ) nogil:
 
         cdef ITYPE_t n_Y = len(self.Y_norm_squared)
@@ -334,7 +335,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         cdef ITYPE_t k = n_Y * i + j
         cdef DTYPE_t val = (
             self.X_norm_squared[i + X_start] +
-            dist_middle_terms[i * n_Y + j] +
+            self.dist_middle_terms_chunks[thread_num][i * n_Y + j] +
             self.Y_norm_squared[j + Y_start]
         )
         # Catastrophic cancellation might cause -0. to be present,
@@ -467,7 +468,7 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         return
 {{endif}}
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -476,7 +477,6 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         ITYPE_t thread_num,
     ) nogil:
         cdef:
-            DTYPE_t *dist_middle_terms = self.dist_middle_terms_chunks[thread_num].data()
 
             # Careful: LDA, LDB and LDC are given for F-ordered arrays
             # in BLAS documentations, for instance:
@@ -506,9 +506,9 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
             ITYPE_t ldc = Y_end - Y_start
 
         # dist_middle_terms = `-2 * X[X_start:X_end] @ Y[Y_start:Y_end].T`
-        _gemm(order, ta, tb, m, n, K, alpha, A, lda, B, ldb, beta, dist_middle_terms, ldc)
+        _gemm(order, ta, tb, m, n, K, alpha, A, lda, B, ldb, beta, self.dist_middle_terms_chunks[thread_num].data(), ldc)
 
-        return dist_middle_terms
+        return
 
 
 cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):
@@ -575,7 +575,7 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
             0.0,
         )
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -583,11 +583,6 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
         ITYPE_t Y_end,
         ITYPE_t thread_num,
     ) nogil:
-        cdef:
-            DTYPE_t *dist_middle_terms = (
-                self.dist_middle_terms_chunks[thread_num].data()
-            )
-
         _middle_term_sparse_sparse_64(
             self.X_data,
             self.X_indices,
@@ -599,9 +594,9 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
             self.Y_indptr,
             Y_start,
             Y_end,
-            dist_middle_terms,
+            self.dist_middle_terms_chunks[thread_num].data(),
         )
 
-        return dist_middle_terms
+        return
 
 {{endfor}}

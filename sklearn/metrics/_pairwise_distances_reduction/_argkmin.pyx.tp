@@ -570,7 +570,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
             # implementation.
             # For more information see MiddleTermComputer.
             use_squared_distances = metric == "sqeuclidean"
-            pda = ArgKmin{{name_suffix}}(
+            pda = NewArgKmin{{name_suffix}}(
                 X=X, Y=Y, k=k,
                 use_squared_distances=use_squared_distances,
                 chunk_size=chunk_size,
@@ -582,13 +582,13 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
             # Fall back on a generic implementation that handles most scipy
             # metrics by computing the distances between 2 vectors at a time.
             # engine = DefaultEngine(metric=metric, metric_kwargs=metric_kwargs)
-            pda = ArgKmin{{name_suffix}}(
+            pda = NewArgKmin{{name_suffix}}(
                 X=X, Y=Y, k=k,
                 chunk_size=chunk_size,
                 strategy=strategy,
             )
+            engine = BaseEngine()
 
-        engine = BaseEngine()
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
@@ -704,6 +704,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         engine._parallel_on_Y_pre_compute_and_reduce_distances_on_chunks(
             X_start, X_end, Y_start, Y_end, thread_num
         )
+    @final
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
         BaseEngine engine,
@@ -721,15 +722,11 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
             DTYPE_t * heaps_r_distances = self.heaps_r_distances_chunks[thread_num]
             ITYPE_t * heaps_indices = self.heaps_indices_chunks[thread_num]
 
-            DTYPE_t * dist_middle_terms = engine._compute_dist_middle_terms(
-                X_start, X_end, Y_start, Y_end, thread_num
-            )
-
         # Pushing the distance and their associated indices on heaps
         # which keep tracks of the argkmin.
         for i in range(n_X):
             for j in range(n_Y):
-                val = engine._compute_pair_distance(i, j)
+                val = engine._compute_pair_distance(i, j, X_start, Y_start, thread_num)
 
                 heap_push(
                     values=heaps_r_distances + i * self.k,

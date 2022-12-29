@@ -14,7 +14,7 @@ implementation_specific_values = [
 
 }}
 cimport numpy as cnp
-
+from cython cimport final
 from libcpp.vector cimport vector
 
 from ...utils._typedefs cimport DTYPE_t, ITYPE_t, SPARSE_INDEX_TYPE_t
@@ -130,7 +130,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
 
     cdef void _parallel_on_Y_init(self) nogil
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -139,13 +139,14 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t thread_num,
     ) nogil
 
+    @final
     cdef DTYPE_t _compute_pair_distance(
         self,
         ITYPE_t i, # Index of X sample
         ITYPE_t j, # Index of Y sample
         ITYPE_t X_start, # Index offset
         ITYPE_t Y_start, # Index offset
-        DTYPE_t * dist_middle_terms, # Array of pre-computeted middle terms
+        ITYPE_t thread_num, # Thread number
     ) nogil
 
 cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):
@@ -191,7 +192,7 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         ITYPE_t thread_num
     ) nogil
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
@@ -229,7 +230,7 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
         ITYPE_t thread_num
     ) nogil
 
-    cdef DTYPE_t * _compute_dist_middle_terms(
+    cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
         ITYPE_t X_end,
