@@ -603,6 +603,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         self,
         X,
         Y,
+        metric,
         ITYPE_t k=1,
         bint use_squared_distances=False,
         chunk_size=None,

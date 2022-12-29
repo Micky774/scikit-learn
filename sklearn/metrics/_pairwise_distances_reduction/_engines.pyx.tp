@@ -121,6 +121,16 @@ cdef class BaseEngine:
     ) nogil:
         return
 
+    cdef DTYPE_t _compute_pair_distance(
+        self,
+        ITYPE_t i, # Index of X sample
+        ITYPE_t j, # Index of Y sample
+        ITYPE_t X_start, # Index offset
+        ITYPE_t Y_start, # Index offset
+        ITYPE_t thread_num, # Thread number
+    ) nogil:
+        return -1
+
 # TODO: If possible optimize this routine to efficiently treat cases where
 # `n_samples_X << n_samples_Y` met in practise when X_test consists of a
 # few samples, and thus when there's a single chunk of X whose number of
@@ -320,7 +330,6 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
     ) nogil:
         return
 
-    @final
     cdef DTYPE_t _compute_pair_distance(
         self,
         ITYPE_t i, # Index of X sample
@@ -340,7 +349,8 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         )
         # Catastrophic cancellation might cause -0. to be present,
         # e.g. when computing d(x_i, y_i) when X is Y.
-        return max(0., val)
+        val = max(0., val)
+        return val
 
 
 cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):

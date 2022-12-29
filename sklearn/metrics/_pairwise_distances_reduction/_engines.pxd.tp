@@ -104,6 +104,15 @@ cdef class BaseEngine:
         ITYPE_t thread_num,
     ) nogil
 
+    cdef DTYPE_t _compute_pair_distance(
+        self,
+        ITYPE_t i, # Index of X sample
+        ITYPE_t j, # Index of Y sample
+        ITYPE_t X_start, # Index offset
+        ITYPE_t Y_start, # Index offset
+        ITYPE_t thread_num, # Thread number
+    ) nogil
+
 {{for name_suffix, upcast_to_float64, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}
 
 cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
@@ -139,7 +148,6 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t thread_num,
     ) nogil
 
-    @final
     cdef DTYPE_t _compute_pair_distance(
         self,
         ITYPE_t i, # Index of X sample
