@@ -26,7 +26,6 @@ from ...utils._cython_blas cimport (
   _gemm,
 )
 from ...utils._typedefs cimport DTYPE_t, ITYPE_t, SPARSE_INDEX_TYPE_t
-
 # TODO: change for `libcpp.algorithm.fill` once Cython 3 is used
 # Introduction in Cython:
 #
@@ -370,7 +369,6 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         ITYPE_t effective_n_threads,
         ITYPE_t chunks_n_threads,
         ITYPE_t dist_middle_terms_chunks_size,
-        ITYPE_t n_features,
         ITYPE_t chunk_size,
         dict metric_kwargs=None,
     ):
@@ -379,7 +377,6 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
             effective_n_threads,
             chunks_n_threads,
             dist_middle_terms_chunks_size,
-            n_features,
             chunk_size,
             metric_kwargs=None,
         )
@@ -391,7 +388,7 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         self.X_c_upcast = vector[vector[DTYPE_t]](self.effective_n_threads)
         self.Y_c_upcast = vector[vector[DTYPE_t]](self.effective_n_threads)
 
-        upcast_buffer_n_elements = self.chunk_size * n_features
+        upcast_buffer_n_elements = self.chunk_size * self.n_features
 
         for thread_num in range(self.effective_n_threads):
             self.X_c_upcast[thread_num].resize(upcast_buffer_n_elements)
@@ -540,7 +537,6 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
         ITYPE_t effective_n_threads,
         ITYPE_t chunks_n_threads,
         ITYPE_t dist_middle_terms_chunks_size,
-        ITYPE_t n_features,
         ITYPE_t chunk_size,
     ):
         super().__init__(
@@ -548,7 +544,6 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
             effective_n_threads,
             chunks_n_threads,
             dist_middle_terms_chunks_size,
-            n_features,
             chunk_size,
             metric_kwargs=None,
         )

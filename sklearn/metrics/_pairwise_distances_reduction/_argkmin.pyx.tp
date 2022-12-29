@@ -556,6 +556,15 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
 
         No instance should directly be created outside of this class method.
         """
+        use_squared_distances = metric == "sqeuclidean"
+        pda = NewArgKmin{{name_suffix}}(
+            X=X, Y=Y, k=k,
+            metric=metric,
+            use_squared_distances=use_squared_distances,
+            chunk_size=chunk_size,
+            strategy=strategy,
+            metric_kwargs=metric_kwargs,
+        )
         if (
             metric in ("euclidean", "sqeuclidean")
             and not (issparse(X) ^ issparse(Y))  # "^" is the XOR operator
@@ -569,24 +578,10 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
             # several orders of magnitude compared to the generic ArgKmin
             # implementation.
             # For more information see MiddleTermComputer.
-            use_squared_distances = metric == "sqeuclidean"
-            pda = NewArgKmin{{name_suffix}}(
-                X=X, Y=Y, k=k,
-                use_squared_distances=use_squared_distances,
-                chunk_size=chunk_size,
-                strategy=strategy,
-                metric_kwargs=metric_kwargs,
-            )
             engine = EuclideanEngine{{name_suffix}}.get_for(X, Y, pda)
         else:
             # Fall back on a generic implementation that handles most scipy
             # metrics by computing the distances between 2 vectors at a time.
-            # engine = DefaultEngine(metric=metric, metric_kwargs=metric_kwargs)
-            pda = NewArgKmin{{name_suffix}}(
-                X=X, Y=Y, k=k,
-                chunk_size=chunk_size,
-                strategy=strategy,
-            )
             engine = BaseEngine()
 
         # Limit the number of threads in second level of nested parallelism for BLAS
@@ -616,6 +611,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
             strategy=strategy,
         )
         self.k = check_scalar(k, "k", Integral, min_val=1)
+        self.metric_kwargs = metric_kwargs
 
         # Allocating pointers to datastructures but not the datastructures themselves.
         # There are as many pointers as effective threads.
@@ -861,6 +857,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
                     max(distances[i, j], 0.)
                 )
 
+    @final
     def _finalize_results(self, bint return_distance=False):
         if return_distance:
             # We need to recompute distances because we relied on

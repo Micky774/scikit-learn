@@ -43,13 +43,14 @@ cdef class BaseDistancesReduction{{name_suffix}}:
         #
         #                 chunks_n_threads <= effective_n_threads
         #
-        ITYPE_t effective_n_threads
-        ITYPE_t chunks_n_threads
+        readonly ITYPE_t effective_n_threads
+        readonly ITYPE_t chunks_n_threads
 
-        ITYPE_t n_samples_chunk, chunk_size
+        readonly ITYPE_t n_samples_chunk, chunk_size
+        readonly ITYPE_t Y_n_samples_chunk, X_n_samples_chunk
 
-        ITYPE_t n_samples_X, X_n_samples_chunk, X_n_chunks, X_n_samples_last_chunk
-        ITYPE_t n_samples_Y, Y_n_samples_chunk, Y_n_chunks, Y_n_samples_last_chunk
+        ITYPE_t n_samples_X, X_n_chunks, X_n_samples_last_chunk
+        ITYPE_t n_samples_Y, Y_n_chunks, Y_n_samples_last_chunk
 
         bint execute_in_parallel_on_Y
 

@@ -44,4 +44,6 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         DTYPE_t ** heaps_r_distances_chunks
         ITYPE_t ** heaps_indices_chunks
 
+        readonly dict metric_kwargs
+
 {{endfor}}
