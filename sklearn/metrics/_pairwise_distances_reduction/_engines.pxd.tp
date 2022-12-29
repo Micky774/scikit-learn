@@ -127,18 +127,6 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         # Buffers for the `-2 * X_c @ Y_c.T` term computed via GEMM
         vector[vector[DTYPE_t]] dist_middle_terms_chunks
 
-
-    cdef void _parallel_on_X_parallel_init(self, ITYPE_t thread_num) nogil
-
-    cdef void _parallel_on_X_init_chunk(
-        self,
-        ITYPE_t thread_num,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-    ) nogil
-
-    cdef void _parallel_on_Y_init(self) nogil
-
     cdef void _compute_dist_middle_terms(
         self,
         ITYPE_t X_start,
@@ -146,15 +134,6 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
-    ) nogil
-
-    cdef DTYPE_t _compute_pair_distance(
-        self,
-        ITYPE_t i, # Index of X sample
-        ITYPE_t j, # Index of Y sample
-        ITYPE_t X_start, # Index offset
-        ITYPE_t Y_start, # Index offset
-        ITYPE_t thread_num, # Thread number
     ) nogil
 
 cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):
@@ -168,46 +147,6 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         vector[vector[DTYPE_t]] Y_c_upcast
     {{endif}}
 
-    cdef void _parallel_on_X_pre_compute_and_reduce_distances_on_chunks(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num,
-    ) nogil
-
-    cdef void _parallel_on_X_init_chunk(
-        self,
-        ITYPE_t thread_num,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-    ) nogil
-
-    cdef void _parallel_on_Y_parallel_init(
-        self,
-        ITYPE_t thread_num,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-    ) nogil
-
-    cdef void _parallel_on_Y_pre_compute_and_reduce_distances_on_chunks(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num
-    ) nogil
-
-    cdef void _compute_dist_middle_terms(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num,
-    ) nogil
 
 
 cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):
@@ -219,32 +158,5 @@ cdef class SparseSparseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suff
         const DTYPE_t[:] Y_data
         const SPARSE_INDEX_TYPE_t[:] Y_indices
         const SPARSE_INDEX_TYPE_t[:] Y_indptr
-
-    cdef void _parallel_on_X_pre_compute_and_reduce_distances_on_chunks(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num
-    ) nogil
-
-    cdef void _parallel_on_Y_pre_compute_and_reduce_distances_on_chunks(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num
-    ) nogil
-
-    cdef void _compute_dist_middle_terms(
-        self,
-        ITYPE_t X_start,
-        ITYPE_t X_end,
-        ITYPE_t Y_start,
-        ITYPE_t Y_end,
-        ITYPE_t thread_num,
-    ) nogil
 
 {{endfor}}
