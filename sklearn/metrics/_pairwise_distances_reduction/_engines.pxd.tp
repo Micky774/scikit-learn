@@ -102,6 +102,9 @@ cdef class BaseEngine:
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
+        ITYPE_t k,
+        DTYPE_t * heaps_r_distances,
+        ITYPE_t * heaps_indices,
     ) nogil
 
     cdef DTYPE_t _compute_pair_distance(

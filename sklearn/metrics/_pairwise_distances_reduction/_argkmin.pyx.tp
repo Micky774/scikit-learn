@@ -711,27 +711,16 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         ITYPE_t Y_end,
         ITYPE_t thread_num,
     ) nogil:
-        cdef:
-            ITYPE_t i, j
-            DTYPE_t val
-            ITYPE_t n_X = X_end - X_start
-            ITYPE_t n_Y = Y_end - Y_start
-            DTYPE_t * heaps_r_distances = self.heaps_r_distances_chunks[thread_num]
-            ITYPE_t * heaps_indices = self.heaps_indices_chunks[thread_num]
-
-        # Pushing the distance and their associated indices on heaps
-        # which keep tracks of the argkmin.
-        for i in range(n_X):
-            for j in range(n_Y):
-                val = engine._compute_pair_distance(i, j, X_start, Y_start, thread_num)
-
-                heap_push(
-                    values=heaps_r_distances + i * self.k,
-                    indices=heaps_indices + i * self.k,
-                    size=self.k,
-                    val=val,
-                    val_idx=j + Y_start,
-                )
+        engine._compute_and_reduce_distances_on_chunks(
+            X_start,
+            X_end,
+            Y_start,
+            Y_end,
+            thread_num,
+            self.k,
+            self.heaps_r_distances_chunks[thread_num],
+            self.heaps_indices_chunks[thread_num],
+        )
 #######################
 
     @final

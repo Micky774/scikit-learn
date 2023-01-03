@@ -25,6 +25,7 @@ from ...utils._cython_blas cimport (
   Trans,
   _gemm,
 )
+from ...utils._heap cimport heap_push
 from ...utils._typedefs cimport DTYPE_t, ITYPE_t, SPARSE_INDEX_TYPE_t
 # TODO: change for `libcpp.algorithm.fill` once Cython 3 is used
 # Introduction in Cython:
@@ -117,6 +118,9 @@ cdef class BaseEngine:
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
+        ITYPE_t k,
+        DTYPE_t * heaps_r_distances,
+        ITYPE_t * heaps_indices,
     ) nogil:
         return
 
@@ -348,9 +352,45 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         )
         # Catastrophic cancellation might cause -0. to be present,
         # e.g. when computing d(x_i, y_i) when X is Y.
-        val = max(0., val)
-        return val
+        return max(0., val)
 
+    cdef void _compute_and_reduce_distances_on_chunks(
+        self,
+        ITYPE_t X_start,
+        ITYPE_t X_end,
+        ITYPE_t Y_start,
+        ITYPE_t Y_end,
+        ITYPE_t thread_num,
+        ITYPE_t k,
+        DTYPE_t * heaps_r_distances,
+        ITYPE_t * heaps_indices,
+    ) nogil:
+        cdef:
+            ITYPE_t i, j
+            DTYPE_t val
+            ITYPE_t n_X = X_end - X_start
+            ITYPE_t n_Y = Y_end - Y_start
+
+        # Pre-compute the middle termsm used in `_compute_pair_distance`
+        self._compute_dist_middle_terms(X_start, X_end, Y_start, Y_end, thread_num)
+
+        # Pushing the distance and their associated indices on heaps
+        # which keep tracks of the argkmin.
+        for i in range(n_X):
+            for j in range(n_Y):
+                heap_push(
+                    values=heaps_r_distances + i * k,
+                    indices=heaps_indices + i * k,
+                    size=k,
+                    val=self._compute_pair_distance(
+                        i,
+                        j,
+                        X_start,
+                        Y_start,
+                        thread_num
+                    ),
+                    val_idx=j + Y_start,
+                )
 
 cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):
     """Computes the middle term of the Euclidean distance between two chunked dense matrices
