@@ -98,7 +98,10 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
-            pda._parallel_on_X(engine)
+            if pda.execute_in_parallel_on_Y:
+                pda._parallel_on_Y(engine)
+            else:
+                pda._parallel_on_X(engine)
 
         return pda._finalize_results(return_distance)
 
@@ -584,7 +587,10 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
-            pda._parallel_on_X(engine)
+            if pda.execute_in_parallel_on_Y:
+                pda._parallel_on_Y(engine)
+            else:
+                pda._parallel_on_X(engine)
 
         return pda._finalize_results(return_distance)
 
