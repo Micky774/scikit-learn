@@ -355,7 +355,6 @@ cdef class EuclideanArgKmin{{name_suffix}}(ArgKmin{{name_suffix}}):
         )
         cdef:
             ITYPE_t dist_middle_terms_chunks_size = self.Y_n_samples_chunk * self.X_n_samples_chunk
-        print(f"{dist_middle_terms_chunks_size}")
 
         self.middle_term_computer = MiddleTermComputer{{name_suffix}}.get_for(
             X,
