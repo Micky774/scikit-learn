@@ -113,6 +113,7 @@ cdef class BaseEngine:
         ITYPE_t j, # Index of Y sample
         ITYPE_t X_start, # Index offset
         ITYPE_t Y_start, # Index offset
+        ITYPE_t n_Y,
         ITYPE_t thread_num, # Thread number
     ) nogil
 

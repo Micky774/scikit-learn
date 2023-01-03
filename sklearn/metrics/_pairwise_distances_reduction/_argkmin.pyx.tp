@@ -98,10 +98,7 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
-            if pda.execute_in_parallel_on_Y:
-                pda._parallel_on_Y(engine)
-            else:
-                pda._parallel_on_X(engine)
+            pda._parallel_on_X(engine)
 
         return pda._finalize_results(return_distance)
 
@@ -358,6 +355,7 @@ cdef class EuclideanArgKmin{{name_suffix}}(ArgKmin{{name_suffix}}):
         )
         cdef:
             ITYPE_t dist_middle_terms_chunks_size = self.Y_n_samples_chunk * self.X_n_samples_chunk
+        print(f"{dist_middle_terms_chunks_size}")
 
         self.middle_term_computer = MiddleTermComputer{{name_suffix}}.get_for(
             X,
@@ -587,10 +585,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
         with threadpool_limits(limits=1, user_api="blas"):
-            if pda.execute_in_parallel_on_Y:
-                pda._parallel_on_Y(engine)
-            else:
-                pda._parallel_on_X(engine)
+            pda._parallel_on_X(engine)
 
         return pda._finalize_results(return_distance)
 

@@ -130,6 +130,7 @@ cdef class BaseEngine:
         ITYPE_t j, # Index of Y sample
         ITYPE_t X_start, # Index offset
         ITYPE_t Y_start, # Index offset
+        ITYPE_t n_Y,
         ITYPE_t thread_num, # Thread number
     ) nogil:
         return -1
@@ -339,10 +340,10 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t j, # Index of Y sample
         ITYPE_t X_start, # Index offset
         ITYPE_t Y_start, # Index offset
+        ITYPE_t n_Y,
         ITYPE_t thread_num, # Thread number
     ) nogil:
 
-        cdef ITYPE_t n_Y = len(self.Y_norm_squared)
         # Index of middle term
         cdef ITYPE_t k = n_Y * i + j
         cdef DTYPE_t val = (
@@ -387,6 +388,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
                         j,
                         X_start,
                         Y_start,
+                        n_Y,
                         thread_num
                     ),
                     val_idx=j + Y_start,
@@ -500,7 +502,7 @@ cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix
         ITYPE_t X_end,
         ITYPE_t Y_start,
         ITYPE_t Y_end,
-        ITYPE_t thread_num
+        ITYPE_t thread_num,
     ) nogil:
 {{if upcast_to_float64}}
         cdef:
