@@ -39,6 +39,47 @@ from scipy.sparse import issparse, csr_matrix
 from ...utils._typedefs import DTYPE, SPARSE_INDEX_TYPE
 from ...utils import check_array
 
+
+# TODO: If possible optimize this routine to efficiently treat cases where
+# `n_samples_X << n_samples_Y` met in practise when X_test consists of a
+# few samples, and thus when there's a single chunk of X whose number of
+# samples is less that the default chunk size.
+
+# TODO: compare this routine with the similar ones in SciPy, especially
+# `csr_matmat` which might implement a better algorithm.
+# See: https://github.com/scipy/scipy/blob/e58292e066ba2cb2f3d1e0563ca9314ff1f4f311/scipy/sparse/sparsetools/csr.h#L603-L669  # noqa
+cdef void _middle_term_sparse_sparse_64(
+    const DTYPE_t[:] X_data,
+    const SPARSE_INDEX_TYPE_t[:] X_indices,
+    const SPARSE_INDEX_TYPE_t[:] X_indptr,
+    ITYPE_t X_start,
+    ITYPE_t X_end,
+    const DTYPE_t[:] Y_data,
+    const SPARSE_INDEX_TYPE_t[:] Y_indices,
+    const SPARSE_INDEX_TYPE_t[:] Y_indptr,
+    ITYPE_t Y_start,
+    ITYPE_t Y_end,
+    DTYPE_t * D,
+) nogil:
+    # This routine assumes that D points to the first element of a
+    # zeroed buffer of length at least equal to n_X × n_Y, conceptually
+    # representing a 2-d C-ordered array.
+    cdef:
+        ITYPE_t i, j, k
+        ITYPE_t n_X = X_end - X_start
+        ITYPE_t n_Y = Y_end - Y_start
+        ITYPE_t X_i_col_idx, X_i_ptr, Y_j_col_idx, Y_j_ptr
+
+    for i in range(n_X):
+        for X_i_ptr in range(X_indptr[X_start+i], X_indptr[X_start+i+1]):
+            X_i_col_idx = X_indices[X_i_ptr]
+            for j in range(n_Y):
+                k = i * n_Y + j
+                for Y_j_ptr in range(Y_indptr[Y_start+j], Y_indptr[Y_start+j+1]):
+                    Y_j_col_idx = Y_indices[Y_j_ptr]
+                    if X_i_col_idx == Y_j_col_idx:
+                        D[k] += -2 * X_data[X_i_ptr] * Y_data[Y_j_ptr]
+
 cdef class BaseEngine:
     def __init__(self):
         return
@@ -113,6 +154,7 @@ cdef class BaseEngine:
 
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
+        DIST_FUNC dist_func,
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -122,63 +164,28 @@ cdef class BaseEngine:
         DTYPE_t * heaps_r_distances,
         ITYPE_t * heaps_indices,
     ) nogil:
-        return
+        cdef:
+            ITYPE_t i, j
+            DTYPE_t val
+            ITYPE_t n_X = X_end - X_start
+            ITYPE_t n_Y = Y_end - Y_start
 
-    cdef DTYPE_t _compute_pair_distance(
-        self,
-        ITYPE_t i, # Index of X sample
-        ITYPE_t j, # Index of Y sample
-        ITYPE_t X_start, # Index offset
-        ITYPE_t Y_start, # Index offset
-        ITYPE_t n_Y,
-        ITYPE_t thread_num, # Thread number
-    ) nogil:
-        return -1
-
-# TODO: If possible optimize this routine to efficiently treat cases where
-# `n_samples_X << n_samples_Y` met in practise when X_test consists of a
-# few samples, and thus when there's a single chunk of X whose number of
-# samples is less that the default chunk size.
-
-# TODO: compare this routine with the similar ones in SciPy, especially
-# `csr_matmat` which might implement a better algorithm.
-# See: https://github.com/scipy/scipy/blob/e58292e066ba2cb2f3d1e0563ca9314ff1f4f311/scipy/sparse/sparsetools/csr.h#L603-L669  # noqa
-cdef void _middle_term_sparse_sparse_64(
-    const DTYPE_t[:] X_data,
-    const SPARSE_INDEX_TYPE_t[:] X_indices,
-    const SPARSE_INDEX_TYPE_t[:] X_indptr,
-    ITYPE_t X_start,
-    ITYPE_t X_end,
-    const DTYPE_t[:] Y_data,
-    const SPARSE_INDEX_TYPE_t[:] Y_indices,
-    const SPARSE_INDEX_TYPE_t[:] Y_indptr,
-    ITYPE_t Y_start,
-    ITYPE_t Y_end,
-    DTYPE_t * D,
-) nogil:
-    # This routine assumes that D points to the first element of a
-    # zeroed buffer of length at least equal to n_X × n_Y, conceptually
-    # representing a 2-d C-ordered array.
-    cdef:
-        ITYPE_t i, j, k
-        ITYPE_t n_X = X_end - X_start
-        ITYPE_t n_Y = Y_end - Y_start
-        ITYPE_t X_i_col_idx, X_i_ptr, Y_j_col_idx, Y_j_ptr
-
-    for i in range(n_X):
-        for X_i_ptr in range(X_indptr[X_start+i], X_indptr[X_start+i+1]):
-            X_i_col_idx = X_indices[X_i_ptr]
+        # Pushing the distance and their associated indices on heaps
+        # which keep tracks of the argkmin.
+        for i in range(n_X):
             for j in range(n_Y):
-                k = i * n_Y + j
-                for Y_j_ptr in range(Y_indptr[Y_start+j], Y_indptr[Y_start+j+1]):
-                    Y_j_col_idx = Y_indices[Y_j_ptr]
-                    if X_i_col_idx == Y_j_col_idx:
-                        D[k] += -2 * X_data[X_i_ptr] * Y_data[Y_j_ptr]
-
+                heap_push(
+                    values=heaps_r_distances + i * k,
+                    indices=heaps_indices + i * k,
+                    size=k,
+                    val=dist_func(X_start + i, Y_start + j),
+                    val_idx=j + Y_start,
+                )
 
 {{for name_suffix, upcast_to_float64, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}
 
 from ._base cimport _sqeuclidean_row_norms{{name_suffix}}
+from ._datasets_pair cimport DatasetsPair{{name_suffix}}
 
 cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
     """Helper class to compute a Euclidean distance matrix in chunks.
@@ -307,6 +314,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
                 )
             )
 
+    @final
     cdef void _parallel_on_X_parallel_init(self, ITYPE_t thread_num) nogil:
         self.dist_middle_terms_chunks[thread_num].resize(self.dist_middle_terms_chunks_size)
 
@@ -318,6 +326,7 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
     ) nogil:
         return
 
+    @final
     cdef void _parallel_on_Y_init(self) nogil:
         for thread_num in range(self.chunks_n_threads):
             self.dist_middle_terms_chunks[thread_num].resize(
@@ -334,29 +343,10 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
     ) nogil:
         return
 
-    cdef DTYPE_t _compute_pair_distance(
-        self,
-        ITYPE_t i, # Index of X sample
-        ITYPE_t j, # Index of Y sample
-        ITYPE_t X_start, # Index offset
-        ITYPE_t Y_start, # Index offset
-        ITYPE_t n_Y,
-        ITYPE_t thread_num, # Thread number
-    ) nogil:
-
-        # Index of middle term
-        cdef ITYPE_t k = n_Y * i + j
-        cdef DTYPE_t val = (
-            self.X_norm_squared[i + X_start] +
-            self.dist_middle_terms_chunks[thread_num][i * n_Y + j] +
-            self.Y_norm_squared[j + Y_start]
-        )
-        # Catastrophic cancellation might cause -0. to be present,
-        # e.g. when computing d(x_i, y_i) when X is Y.
-        return max(0., val)
-
+    @final
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
+        DIST_FUNC dist_func, # Unused
         ITYPE_t X_start,
         ITYPE_t X_end,
         ITYPE_t Y_start,
@@ -372,25 +362,22 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
             ITYPE_t n_X = X_end - X_start
             ITYPE_t n_Y = Y_end - Y_start
 
-        # Pre-compute the middle termsm used in `_compute_pair_distance`
         self._compute_dist_middle_terms(X_start, X_end, Y_start, Y_end, thread_num)
 
         # Pushing the distance and their associated indices on heaps
         # which keep tracks of the argkmin.
         for i in range(n_X):
             for j in range(n_Y):
+                val = max(0,
+                    self.X_norm_squared[i + X_start]
+                    + self.dist_middle_terms_chunks[thread_num][i * n_Y + j]
+                    + self.Y_norm_squared[j + Y_start]
+                )
                 heap_push(
                     values=heaps_r_distances + i * k,
                     indices=heaps_indices + i * k,
                     size=k,
-                    val=self._compute_pair_distance(
-                        i,
-                        j,
-                        X_start,
-                        Y_start,
-                        n_Y,
-                        thread_num
-                    ),
+                    val=val,
                     val_idx=j + Y_start,
                 )
 

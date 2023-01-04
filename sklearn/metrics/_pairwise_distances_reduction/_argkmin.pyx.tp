@@ -712,6 +712,7 @@ cdef class NewArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         ITYPE_t thread_num,
     ) nogil:
         engine._compute_and_reduce_distances_on_chunks(
+            NULL, # Unused
             X_start,
             X_end,
             Y_start,
