@@ -121,28 +121,11 @@ cdef DTYPE_t[::1] _sqeuclidean_row_norms64_sparse(
     return squared_row_norms
 
 
-{{for name_suffix, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}
-
-from ._datasets_pair cimport DatasetsPair{{name_suffix}}
 
 
-cpdef DTYPE_t[::1] _sqeuclidean_row_norms{{name_suffix}}(
-    X,
-    ITYPE_t num_threads,
-):
-    if issparse(X):
-        # TODO: remove this instruction which is a cast in the float32 case
-        # by moving squared row norms computations in EuclideanEngine.
-        X_data = np.asarray(X.data, dtype=DTYPE)
-        X_indptr = np.asarray(X.indptr, dtype=SPARSE_INDEX_TYPE)
-        return _sqeuclidean_row_norms64_sparse(X_data, X_indptr, num_threads)
-    else:
-        return _sqeuclidean_row_norms{{name_suffix}}_dense(X, num_threads)
-
-
-cdef class BaseDistancesReduction{{name_suffix}}:
+cdef class BaseDistancesReduction:
     """
-    Base float{{name_suffix}} implementation template of the pairwise-distances
+    Base implementation template of the pairwise-distances
     reduction backends.
 
     Implementations inherit from this template and may override the several
@@ -152,77 +135,14 @@ cdef class BaseDistancesReduction{{name_suffix}}:
 
     def __init__(
         self,
-        DatasetsPair{{name_suffix}} datasets_pair,
         chunk_size=None,
-        strategy=None,
      ):
-        cdef:
-            ITYPE_t X_n_full_chunks, Y_n_full_chunks
-
         if chunk_size is None:
             chunk_size = get_config().get("pairwise_dist_chunk_size", 256)
 
         self.chunk_size = check_scalar(chunk_size, "chunk_size", Integral, min_val=20)
 
         self.effective_n_threads = _openmp_effective_n_threads()
-
-        self.datasets_pair = datasets_pair
-
-        self.n_samples_X = datasets_pair.n_samples_X()
-        self.X_n_samples_chunk = min(self.n_samples_X, self.chunk_size)
-        X_n_full_chunks = self.n_samples_X // self.X_n_samples_chunk
-        X_n_samples_remainder = self.n_samples_X % self.X_n_samples_chunk
-        self.X_n_chunks = X_n_full_chunks + (X_n_samples_remainder != 0)
-
-        if X_n_samples_remainder != 0:
-            self.X_n_samples_last_chunk = X_n_samples_remainder
-        else:
-            self.X_n_samples_last_chunk = self.X_n_samples_chunk
-
-        self.n_samples_Y = datasets_pair.n_samples_Y()
-        self.Y_n_samples_chunk = min(self.n_samples_Y, self.chunk_size)
-        Y_n_full_chunks = self.n_samples_Y // self.Y_n_samples_chunk
-        Y_n_samples_remainder = self.n_samples_Y % self.Y_n_samples_chunk
-        self.Y_n_chunks = Y_n_full_chunks + (Y_n_samples_remainder != 0)
-
-        if Y_n_samples_remainder != 0:
-            self.Y_n_samples_last_chunk = Y_n_samples_remainder
-        else:
-            self.Y_n_samples_last_chunk = self.Y_n_samples_chunk
-
-        if strategy is None:
-            strategy = get_config().get("pairwise_dist_parallel_strategy", 'auto')
-
-        if strategy not in ('parallel_on_X', 'parallel_on_Y', 'auto'):
-            raise RuntimeError(f"strategy must be 'parallel_on_X, 'parallel_on_Y', "
-                               f"or 'auto', but currently strategy='{self.strategy}'.")
-
-        if strategy == 'auto':
-            # This is a simple heuristic whose constant for the
-            # comparison has been chosen based on experiments.
-            # parallel_on_X has less synchronization overhead than
-            # parallel_on_Y and should therefore be used whenever
-            # n_samples_X is large enough to not starve any of the
-            # available hardware threads.
-            if self.n_samples_Y < self.n_samples_X:
-                # No point to even consider parallelizing on Y in this case. This
-                # is in particular important to do this on machines with a large
-                # number of hardware threads.
-                strategy = 'parallel_on_X'
-            elif 4 * self.chunk_size * self.effective_n_threads < self.n_samples_X:
-                # If Y is larger than X, but X is still large enough to allow for
-                # parallelism, we might still want to favor parallelizing on X.
-                strategy = 'parallel_on_X'
-            else:
-                strategy = 'parallel_on_Y'
-
-        self.execute_in_parallel_on_Y = strategy == "parallel_on_Y"
-
-        # Not using less, not using more.
-        self.chunks_n_threads = min(
-            self.Y_n_chunks if self.execute_in_parallel_on_Y else self.X_n_chunks,
-            self.effective_n_threads,
-        )
 
     @final
     cdef void _parallel_on_X(self, BaseEngine engine) nogil:
@@ -377,7 +297,7 @@ cdef class BaseDistancesReduction{{name_suffix}}:
     ) nogil:
         """Compute the pairwise distances on two chunks of X and Y and reduce them.
 
-        This is THE core computational method of BaseDistancesReduction{{name_suffix}}.
+        This is THE core computational method of BaseDistancesReduction.
         This must be implemented in subclasses agnostically from the parallelization
         strategies.
         """
@@ -535,5 +455,119 @@ cdef class BaseDistancesReduction{{name_suffix}}:
     ) nogil:
         """Update datastructures after executing all the reductions."""
         return
+
+    cdef void _compute_callback(
+        self,
+        DTYPE_t val,
+        ITYPE_t i,
+        ITYPE_t j,
+        ITYPE_t X_start,
+        ITYPE_t X_end,
+        ITYPE_t Y_start,
+        ITYPE_t Y_end,
+        ITYPE_t thread_num,
+    ) nogil:
+        """Perform callbacks such as a heap push after computing the pairwise
+        distance for a single pair of points.
+        """
+        return
+{{for name_suffix, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}
+
+from ._datasets_pair cimport DatasetsPair{{name_suffix}}
+
+
+cpdef DTYPE_t[::1] _sqeuclidean_row_norms{{name_suffix}}(
+    X,
+    ITYPE_t num_threads,
+):
+    if issparse(X):
+        # TODO: remove this instruction which is a cast in the float32 case
+        # by moving squared row norms computations in EuclideanEngine.
+        X_data = np.asarray(X.data, dtype=DTYPE)
+        X_indptr = np.asarray(X.indptr, dtype=SPARSE_INDEX_TYPE)
+        return _sqeuclidean_row_norms64_sparse(X_data, X_indptr, num_threads)
+    else:
+        return _sqeuclidean_row_norms{{name_suffix}}_dense(X, num_threads)
+
+cdef class BaseDistancesReduction{{name_suffix}}:
+    """
+    Base float{{name_suffix}} implementation template of the pairwise-distances
+    reduction backends.
+
+    Implementations inherit from this template and may override the several
+    defined hooks as needed in order to easily extend functionality with
+    minimal redundant code.
+    """
+
+    def __init__(
+        self,
+        DatasetsPair{{name_suffix}} datasets_pair,
+        chunk_size=None,
+        strategy=None,
+     ):
+        super().__init__(
+            chunk_size=chunk_size,
+        )
+        cdef:
+            ITYPE_t X_n_full_chunks, Y_n_full_chunks
+
+        self.datasets_pair = datasets_pair
+
+        self.n_samples_X = datasets_pair.n_samples_X()
+        self.X_n_samples_chunk = min(self.n_samples_X, self.chunk_size)
+        X_n_full_chunks = self.n_samples_X // self.X_n_samples_chunk
+        X_n_samples_remainder = self.n_samples_X % self.X_n_samples_chunk
+        self.X_n_chunks = X_n_full_chunks + (X_n_samples_remainder != 0)
+
+        if X_n_samples_remainder != 0:
+            self.X_n_samples_last_chunk = X_n_samples_remainder
+        else:
+            self.X_n_samples_last_chunk = self.X_n_samples_chunk
+
+        self.n_samples_Y = datasets_pair.n_samples_Y()
+        self.Y_n_samples_chunk = min(self.n_samples_Y, self.chunk_size)
+        Y_n_full_chunks = self.n_samples_Y // self.Y_n_samples_chunk
+        Y_n_samples_remainder = self.n_samples_Y % self.Y_n_samples_chunk
+        self.Y_n_chunks = Y_n_full_chunks + (Y_n_samples_remainder != 0)
+
+        if Y_n_samples_remainder != 0:
+            self.Y_n_samples_last_chunk = Y_n_samples_remainder
+        else:
+            self.Y_n_samples_last_chunk = self.Y_n_samples_chunk
+
+        if strategy is None:
+            strategy = get_config().get("pairwise_dist_parallel_strategy", 'auto')
+
+        if strategy not in ('parallel_on_X', 'parallel_on_Y', 'auto'):
+            raise RuntimeError(f"strategy must be 'parallel_on_X, 'parallel_on_Y', "
+                               f"or 'auto', but currently strategy='{self.strategy}'.")
+
+        if strategy == 'auto':
+            # This is a simple heuristic whose constant for the
+            # comparison has been chosen based on experiments.
+            # parallel_on_X has less synchronization overhead than
+            # parallel_on_Y and should therefore be used whenever
+            # n_samples_X is large enough to not starve any of the
+            # available hardware threads.
+            if self.n_samples_Y < self.n_samples_X:
+                # No point to even consider parallelizing on Y in this case. This
+                # is in particular important to do this on machines with a large
+                # number of hardware threads.
+                strategy = 'parallel_on_X'
+            elif 4 * self.chunk_size * self.effective_n_threads < self.n_samples_X:
+                # If Y is larger than X, but X is still large enough to allow for
+                # parallelism, we might still want to favor parallelizing on X.
+                strategy = 'parallel_on_X'
+            else:
+                strategy = 'parallel_on_Y'
+
+        self.execute_in_parallel_on_Y = strategy == "parallel_on_Y"
+
+        # Not using less, not using more.
+        self.chunks_n_threads = min(
+            self.Y_n_chunks if self.execute_in_parallel_on_Y else self.X_n_chunks,
+            self.effective_n_threads,
+        )
+
 
 {{endfor}}

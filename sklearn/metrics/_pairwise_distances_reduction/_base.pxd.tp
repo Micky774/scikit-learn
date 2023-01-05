@@ -7,29 +7,8 @@ from ._engines cimport BaseEngine
 
 cnp.import_array()
 
-{{for name_suffix, INPUT_DTYPE_t in [('64', 'DTYPE_t'), ('32', 'cnp.float32_t')]}}
-
-from ._datasets_pair cimport DatasetsPair{{name_suffix}}
-
-
-cpdef DTYPE_t[::1] _sqeuclidean_row_norms{{name_suffix}}(
-    X,
-    ITYPE_t num_threads,
-)
-
-cdef class BaseDistancesReduction{{name_suffix}}:
-    """
-    Base float{{name_suffix}} implementation template of the pairwise-distances
-    reduction backends.
-
-    Implementations inherit from this template and may override the several
-    defined hooks as needed in order to easily extend functionality with
-    minimal redundant code.
-    """
-
+cdef class BaseDistancesReduction:
     cdef:
-        readonly DatasetsPair{{name_suffix}} datasets_pair
-
         # The number of threads that can be used is stored in effective_n_threads.
         #
         # The number of threads to use in the parallelization strategy
@@ -148,4 +127,39 @@ cdef class BaseDistancesReduction{{name_suffix}}:
     cdef void _parallel_on_Y_finalize(
         self,
     ) nogil
+
+    cdef void _compute_callback(
+        self,
+        DTYPE_t val,
+        ITYPE_t i,
+        ITYPE_t j,
+        ITYPE_t X_start,
+        ITYPE_t X_end,
+        ITYPE_t Y_start,
+        ITYPE_t Y_end,
+        ITYPE_t thread_num,
+    ) nogil
+
+{{for name_suffix, INPUT_DTYPE_t in [('64', 'DTYPE_t'), ('32', 'cnp.float32_t')]}}
+
+from ._datasets_pair cimport DatasetsPair{{name_suffix}}
+
+
+cpdef DTYPE_t[::1] _sqeuclidean_row_norms{{name_suffix}}(
+    X,
+    ITYPE_t num_threads,
+)
+
+cdef class BaseDistancesReduction{{name_suffix}}(BaseDistancesReduction):
+    """
+    Base float{{name_suffix}} implementation template of the pairwise-distances
+    reduction backends.
+
+    Implementations inherit from this template and may override the several
+    defined hooks as needed in order to easily extend functionality with
+    minimal redundant code.
+    """
+
+    cdef:
+        readonly DatasetsPair{{name_suffix}} datasets_pair
 {{endfor}}
