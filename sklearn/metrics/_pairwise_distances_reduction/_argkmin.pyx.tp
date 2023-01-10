@@ -29,7 +29,7 @@ from ._base cimport (
     BaseDistancesReduction{{name_suffix}},
     _sqeuclidean_row_norms{{name_suffix}},
 )
-from ._engines cimport EuclideanEngine{{name_suffix}}
+from ._engines cimport EuclideanEngine{{name_suffix}}, BaseEngine{{name_suffix}}
 from ._datasets_pair cimport DatasetsPair{{name_suffix}}
 
 from ._middle_term_computer cimport MiddleTermComputer{{name_suffix}}
@@ -89,7 +89,7 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         else:
             # Fall back on a generic implementation that handles most scipy
             # metrics by computing the distances between 2 vectors at a time.
-            engine = BaseEngine()
+            engine = BaseEngine{{name_suffix}}(pda.datasets_pair)
 
         # Limit the number of threads in second level of nested parallelism for BLAS
         # to avoid threads over-subscription (in GEMM for instance).
@@ -219,7 +219,6 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         ITYPE_t thread_num,
     ) nogil:
         engine._compute_and_reduce_distances_on_chunks(
-            NULL, # Unused
             X_start,
             X_end,
             Y_start,
