@@ -12,6 +12,7 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
 
     cdef:
         ITYPE_t k
+
         ITYPE_t[:, ::1] argkmin_indices
         DTYPE_t[:, ::1] argkmin_distances
 
