@@ -83,6 +83,7 @@ def cythonize_extensions(extension):
             "initializedcheck": False,
             "nonecheck": False,
             "cdivision": True,
+            "profile": True,
         },
     )
 

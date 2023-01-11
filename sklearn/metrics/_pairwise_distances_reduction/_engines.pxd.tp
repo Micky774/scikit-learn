@@ -16,8 +16,8 @@ implementation_specific_values = [
 cimport numpy as cnp
 from cython cimport final
 from libcpp.vector cimport vector
-
 from ...utils._typedefs cimport DTYPE_t, ITYPE_t, SPARSE_INDEX_TYPE_t
+from ._callbacks cimport CALLBACK
 
 ctypedef DTYPE_t (*DIST_FUNC)(ITYPE_t, ITYPE_t) nogil
 
@@ -103,9 +103,10 @@ cdef class BaseEngine:
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
-        ITYPE_t k,
         DTYPE_t * heaps_r_distances,
         ITYPE_t * heaps_indices,
+        CALLBACK callback,
+        void * callback_args,
     ) nogil
 
 {{for name_suffix, upcast_to_float64, INPUT_DTYPE_t, INPUT_DTYPE in implementation_specific_values}}

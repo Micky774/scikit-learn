@@ -25,8 +25,8 @@ from ...utils._cython_blas cimport (
   Trans,
   _gemm,
 )
-from ...utils._heap cimport heap_push
 from ...utils._typedefs cimport DTYPE_t, ITYPE_t, SPARSE_INDEX_TYPE_t
+from ._callbacks cimport CALLBACK
 # TODO: change for `libcpp.algorithm.fill` once Cython 3 is used
 # Introduction in Cython:
 #
@@ -81,8 +81,6 @@ cdef void _middle_term_sparse_sparse_64(
                         D[k] += -2 * X_data[X_i_ptr] * Y_data[Y_j_ptr]
 
 cdef class BaseEngine:
-    def __init__(self):
-        return
 
     cdef void _parallel_on_X_parallel_init(
         self,
@@ -159,9 +157,10 @@ cdef class BaseEngine:
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
-        ITYPE_t k,
         DTYPE_t * heaps_r_distances,
         ITYPE_t * heaps_indices,
+        CALLBACK callback,
+        void * callback_args,
     ) nogil:
         pass
 
@@ -175,6 +174,7 @@ cdef class BaseEngine{{name_suffix}}(BaseEngine):
         # We keep this as an attribute to avoid relying on fused types in
         # interface declaration due to Cython errors
         self.dataset = dataset
+
     cdef void _compute_and_reduce_distances_on_chunks(
         self,
         ITYPE_t X_start,
@@ -182,28 +182,30 @@ cdef class BaseEngine{{name_suffix}}(BaseEngine):
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
-        ITYPE_t k,
         DTYPE_t * heaps_r_distances,
         ITYPE_t * heaps_indices,
+        CALLBACK callback,
+        void * callback_args,
     ) nogil:
         cdef:
             ITYPE_t i, j
-            DTYPE_t val
             ITYPE_t n_X = X_end - X_start
             ITYPE_t n_Y = Y_end - Y_start
 
-        # Pushing the distance and their associated indices on heaps
-        # which keep tracks of the argkmin.
         for i in range(n_X):
             for j in range(n_Y):
-                heap_push(
-                    values=heaps_r_distances + i * k,
-                    indices=heaps_indices + i * k,
-                    size=k,
-                    # While this still has a vtable looku, there is no
-                    # regression since main does the same
-                    val=self.dataset.surrogate_dist(X_start + i, Y_start + j),
-                    val_idx=j + Y_start,
+                callback(
+                    X_start,
+                    X_end,
+                    Y_start,
+                    Y_end,
+                    thread_num,
+                    i,
+                    j,
+                    self.dataset.surrogate_dist(X_start + i, Y_start + j),
+                    heaps_r_distances,
+                    heaps_indices,
+                    callback_args,
                 )
 
 cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
@@ -370,9 +372,10 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
         ITYPE_t Y_start,
         ITYPE_t Y_end,
         ITYPE_t thread_num,
-        ITYPE_t k,
         DTYPE_t * heaps_r_distances,
         ITYPE_t * heaps_indices,
+        CALLBACK callback,
+        void * callback_args,
     ) nogil:
         cdef:
             ITYPE_t i, j
@@ -391,12 +394,18 @@ cdef class EuclideanEngine{{name_suffix}}(BaseEngine):
                     + self.dist_middle_terms_chunks[thread_num][i * n_Y + j]
                     + self.Y_norm_squared[j + Y_start]
                 )
-                heap_push(
-                    values=heaps_r_distances + i * k,
-                    indices=heaps_indices + i * k,
-                    size=k,
-                    val=val,
-                    val_idx=j + Y_start,
+                callback(
+                    X_start,
+                    X_end,
+                    Y_start,
+                    Y_end,
+                    thread_num,
+                    i,
+                    j,
+                    val,
+                    heaps_r_distances,
+                    heaps_indices,
+                    callback_args,
                 )
 
 cdef class DenseDenseEuclideanEngine{{name_suffix}}(EuclideanEngine{{name_suffix}}):

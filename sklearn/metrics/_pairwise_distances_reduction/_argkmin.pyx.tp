@@ -8,7 +8,7 @@ from cython.parallel cimport parallel, prange
 from ...utils._heap cimport heap_push
 from ...utils._sorting cimport simultaneous_sort
 from ...utils._typedefs cimport ITYPE_t, DTYPE_t
-
+from ._callbacks cimport argkmin_callback, ARGKMIN_CALLBACK_ARGS, CALLBACK
 from ._engines cimport BaseEngine
 
 import numpy as np
@@ -218,15 +218,21 @@ cdef class ArgKmin{{name_suffix}}(BaseDistancesReduction{{name_suffix}}):
         ITYPE_t Y_end,
         ITYPE_t thread_num,
     ) nogil:
+
+        # Struct intialization using constructor syntax fails in nogil
+        cdef ARGKMIN_CALLBACK_ARGS callback_args
+        callback_args.k = self.k
+
         engine._compute_and_reduce_distances_on_chunks(
             X_start,
             X_end,
             Y_start,
             Y_end,
             thread_num,
-            self.k,
             self.heaps_r_distances_chunks[thread_num],
             self.heaps_indices_chunks[thread_num],
+            <CALLBACK> argkmin_callback,
+            <void *> &callback_args,
         )
 #######################
 
