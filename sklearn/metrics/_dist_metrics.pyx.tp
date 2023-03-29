@@ -43,8 +43,8 @@ cdef inline double fmax(double a, double b) noexcept nogil:
 
 cdef extern from "_dist_optim.c":
     cdef bint HAS_SIMD
-    cdef DTYPE_t simd_manhattan(DTYPE_t * x, DTYPE_t * y, ITYPE_t t) nogil
-    cdef cnp.float32_t simd_manhattan32(cnp.float32_t * x, cnp.float32_t * y, ITYPE_t t) nogil
+    cdef float64_t simd_manhattan(float64_t * x, float64_t * y, intp_t t) nogil
+    cdef float32_t simd_manhattan32(float32_t * x, float32_t * y, intp_t t) nogil
 
 ######################################################################
 # newObj function
