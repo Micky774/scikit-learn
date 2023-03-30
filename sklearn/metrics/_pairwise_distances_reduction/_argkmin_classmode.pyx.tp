@@ -60,18 +60,14 @@ cdef class ArgKminClassMode{{name_suffix}}(ArgKmin{{name_suffix}}):
         """
 
         if (
-            (
-                metric in ("euclidean", "sqeuclidean")
-                or metric=="minkowski" and (metric_kwargs is None or metric_kwargs.get("p", 2)==2)
-            )
-            and EuclideanArgKminClassMode{{name_suffix}}.is_usable_for(X, Y, metric)
+            metric in ("euclidean", "sqeuclidean")
+            or metric=="minkowski" and (metric_kwargs is None or metric_kwargs.get("p", 2)==2)
         ):
             use_squared_distances = metric == "sqeuclidean"
             pda = EuclideanArgKminClassMode{{name_suffix}}(
                 X=X, Y=Y, k=k,
                 chunk_size=chunk_size,
                 strategy=strategy,
-                metric_kwargs=metric_kwargs,
                 weights=weights,
                 class_membership=class_membership,
                 unique_labels=unique_labels,
@@ -103,11 +99,11 @@ cdef class ArgKminClassMode{{name_suffix}}(ArgKmin{{name_suffix}}):
     def __init__(
         self,
         DatasetsPair{{name_suffix}} datasets_pair,
+        intp_t k,
         const intp_t[:] class_membership,
         const intp_t[:] unique_labels,
         chunk_size=None,
         strategy=None,
-        intp_t k=1,
         weights=None,
     ):
         super().__init__(
@@ -221,11 +217,11 @@ cdef class EuclideanArgKminClassMode{{name_suffix}}(EuclideanArgKmin{{name_suffi
         self,
         X,
         Y,
+        intp_t k,
         const intp_t[:] class_membership,
         const intp_t[:] unique_labels,
         chunk_size=None,
         strategy=None,
-        intp_t k=1,
         weights=None,
         bint use_squared_distances=False,
     ):
@@ -234,7 +230,6 @@ cdef class EuclideanArgKminClassMode{{name_suffix}}(EuclideanArgKmin{{name_suffi
             use_squared_distances=use_squared_distances,
             chunk_size=chunk_size,
             strategy=strategy,
-            k=k,
         )
 
         if weights == "uniform":
