@@ -28,14 +28,14 @@
         for(idx = 0; idx < n_iter; idx += loop_width) {
             simd_x_1 = _mm_set_ps(x[idx], x[idx + 1], x[idx + 2], x[idx + 3]);
             simd_y_1 = _mm_set_ps(y[idx], y[idx + 1], y[idx + 2], y[idx + 3]);
-            sum_1 += abs_ps(_mm_sub_ps(simd_x_1, simd_y_1));
+            sum_1 += abs_ps(simd_x_1 - simd_y_1);
 
             simd_x_2 = _mm_set_ps(x[idx + 4], x[idx + 5], x[idx + 6], x[idx + 7]);
             simd_y_2 = _mm_set_ps(y[idx + 4], y[idx + 5], y[idx + 6], y[idx + 7]);
-            sum_2 += abs_ps(_mm_sub_ps(simd_x_2, simd_y_2));
+            sum_2 += abs_ps(simd_x_2 - simd_y_2);
         }
 
-        sum_1 = _mm_add_ps(sum_1, sum_2);
+        sum_1 += sum_2;
         simd_float32_t hsum = _mm_hadd_ps(sum_1, sum_1);
         hsum = _mm_hadd_ps(hsum, hsum);
         float output_sum = *(float*)&hsum;
@@ -59,13 +59,13 @@
         for(idx = 0; idx < n_iter; idx += loop_width) {
             simd_x_1 = _mm_set_pd(x[idx], x[idx + 1]);
             simd_y_1 = _mm_set_pd(y[idx], y[idx + 1]);
-            sum_1 += abs_pd(_mm_sub_pd(simd_x_1, simd_y_1));
+            sum_1 += abs_pd(simd_x_1 - simd_y_1);
 
             simd_x_2 = _mm_set_pd(x[idx + 2], x[idx + 3]);
             simd_y_2 = _mm_set_pd(y[idx + 2], y[idx + 3]);
-            sum_2 += abs_pd(_mm_sub_pd(simd_x_2, simd_y_2));
+            sum_2 += abs_pd(simd_x_2 - simd_y_2);
         }
-        sum_1 = _mm_add_pd(sum_1, sum_2);
+        sum_1 += sum_2;
         simd_float64_t hsum = _mm_hadd_pd(sum_1, sum_1);
         double output_sum = *(double*)&hsum;
         for(idx = n_iter; idx < t; idx++){
