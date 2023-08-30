@@ -512,7 +512,7 @@ def configure_extension_modules():
                 {
                     "language": "c++",
                     "sources": [join(SIMD_DIRECTORY, "simd.cpp")],
-                    "cflags": ["-std=c++14", "-mavx"],
+                    "cflags": ["-std=c++14", "-mavx2"],
                     "extra_link_args": ["-std=c++14"],
                     "include_dirs": [HWY_INCLUDE_PATH],
                 },
