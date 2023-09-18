@@ -1244,7 +1244,7 @@ cdef class ManhattanDistance{{name_suffix}}(DistanceMetric{{name_suffix}}):
         const {{INPUT_DTYPE_t}}* x2,
         intp_t size,
     ) except -1 nogil:
-        if WITH_SIMD:
+        if WITH_SIMD and size>12:
             # The SIMD build offers scalar implementations as well,
             # hence we do not need any runtime check.
             return simd_manhattan_dist_f{{name_suffix}}(x1, x2, size)
