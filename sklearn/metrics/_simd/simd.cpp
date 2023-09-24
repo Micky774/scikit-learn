@@ -71,6 +71,68 @@ namespace manhattan {
         }
     }
 }
+
+namespace hgbt {
+
+    namespace HWY_NAMESPACE {
+        namespace hn = hwy::HWY_NAMESPACE;
+
+        void _build_histogram_root(
+            const uint32_t n_samples,
+            const uint32_t* binned_features,
+            const float* all_gradients,
+            const float* all_hessians,
+            hist_struct_alt out
+        ){
+            uint32_t i = 0;
+
+            const hn::ScalableTag<uint8_t> d_uint8;
+            const hn::ScalableTag<uint32_t> d_uint32;
+            const hn::ScalableTag<float> d_float;
+            using batch_uint32 = decltype(hn::Zero(d_uint32));
+            using batch_float = decltype(hn::Zero(d_float));
+
+            uint32_t vec_size = hn::Lanes(d_float);
+            uint32_t unrolled_upper = (n_samples / vec_size) * vec_size;
+
+            uint32_t bin_idx;
+            batch_uint32 bins;
+
+            batch_float simd_sum_gradients;
+            batch_float simd_all_gradients;
+            batch_float simd_sum_hessians;
+            batch_float simd_all_hessians;
+            batch_uint32 simd_count;
+
+            batch_uint32 ones = Set(d_uint32, 1);
+
+            for(int i = 0; i < unrolled_upper; i+=vec_size){
+                bins = hn::Load(d_uint32, binned_features);
+
+                //TODO: I believe that GatherIndex requires indices of type in32_t for
+                // an output simd vector of type double (tag d_float), however we initially
+                // expect bins to be of type uint8_t (uint32_t right now for convenience)
+                simd_sum_gradients = hn::GatherIndex(d_float, out.sum_gradients, bins);
+                simd_all_gradients = hn::Load(d_float, &all_gradients[i]);
+                simd_sum_gradients += simd_all_gradients;
+
+                simd_sum_hessians = hn::GatherIndex(d_float, out.sum_hessians, bins);
+                simd_all_hessians = hn::Load(d_float, &all_hessians[i]);
+                simd_all_hessians += simd_all_hessians;
+
+                simd_count = hn::GatherIndex(d_uint32, out.count, bins);
+                simd_count += ones;
+            }
+
+            for(int i = unrolled_upper; i < n_samples; i+=1){
+                bin_idx = binned_features[i];
+                out.sum_gradients[bin_idx] += all_gradients[i];
+                out.sum_hessians[bin_idx] += all_hessians[i];
+                out.count[bin_idx] += 1;
+            }
+        }
+    }
+}
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
@@ -95,5 +157,26 @@ namespace manhattan {
     ){
         return HWY_DYNAMIC_DISPATCH(manhattan_dist_f64)(x,  y, size);
     }
+}
+
+namespace hgbt{
+    HWY_EXPORT(_build_histogram_root);
+
+    HWY_DLLEXPORT void simd_build_histogram_root(
+        const uint32_t n_samples,
+        const uint32_t* binned_features,
+        const float* all_gradients,
+        const float* all_hessians,
+        hist_struct_alt out
+    ){
+        return HWY_DYNAMIC_DISPATCH(_build_histogram_root)(
+            n_samples,
+            binned_features,
+            all_gradients,
+            all_hessians,
+            out
+        );
+    }
+
 }
 #endif  // HWY_ONCE

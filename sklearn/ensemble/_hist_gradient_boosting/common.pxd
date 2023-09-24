@@ -18,6 +18,13 @@ cdef packed struct hist_struct:
     Y_DTYPE_C sum_hessians
     unsigned int count
 
+cdef packed struct hist_struct_alt:
+    # Same as histogram dtype but we need a struct to declare views. It needs
+    # to be packed since by default numpy dtypes aren't aligned
+    Y_DTYPE_C[::1] sum_gradients
+    Y_DTYPE_C[::1] sum_hessians
+    unsigned int[::1] count
+
 
 cdef packed struct node_struct:
     # Equivalent struct to PREDICTOR_RECORD_DTYPE to use in memory views. It
