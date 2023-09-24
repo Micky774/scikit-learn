@@ -115,10 +115,12 @@ namespace hgbt {
                 simd_sum_gradients = hn::GatherIndex(d_float, out.sum_gradients, bins);
                 simd_all_gradients = hn::Load(d_float, &all_gradients[i]);
                 simd_sum_gradients += simd_all_gradients;
+                hn::ScatterIndex(simd_sum_gradients, d_float, out.sum_gradients, bins);
 
                 simd_sum_hessians = hn::GatherIndex(d_float, out.sum_hessians, bins);
                 simd_all_hessians = hn::Load(d_float, &all_hessians[i]);
                 simd_all_hessians += simd_all_hessians;
+                hn::ScatterIndex(simd_sum_hessians, d_float, out.sum_hessians, bins);
 
                 simd_count = hn::GatherIndex(d_uint32, out.count, bins);
                 simd_count += ones;
