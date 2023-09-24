@@ -110,7 +110,7 @@ namespace hgbt {
                 bins = hn::Load(d_uint32, binned_features);
 
                 //TODO: I believe that GatherIndex requires indices of type in32_t for
-                // an output simd vector of type double (tag d_float), however we initially
+                // an output simd vector of type float (tag d_float), however we initially
                 // expect bins to be of type uint8_t (uint32_t right now for convenience)
                 simd_sum_gradients = hn::GatherIndex(d_float, out.sum_gradients, bins);
                 simd_all_gradients = hn::Load(d_float, &all_gradients[i]);
