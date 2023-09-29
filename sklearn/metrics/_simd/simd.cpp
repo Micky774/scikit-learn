@@ -124,6 +124,7 @@ namespace hgbt {
 
                 simd_count = hn::GatherIndex(d_uint32, out.count, bins);
                 simd_count += ones;
+                hn::ScatterIndex(simd_count, d_uint32, out.count, bins);
             }
 
             for(int i = unrolled_upper; i < n_samples; i+=1){
